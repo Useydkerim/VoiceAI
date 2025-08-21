@@ -1,19 +1,22 @@
 import Image from "next/image";
 import Link from "next/link";
 
-const Cta = () => {
+interface CtaProps {
+    fullPage?: boolean;
+}
+
+const Cta = ({ fullPage = false }: CtaProps) => {
     return (
-        <section className="cta-section">
+        <section className={fullPage ? "cta-section-full" : "cta-section"}>
             <div className="cta-badge">Start learning your way.</div>
-            <h2 className="text-3xl font-bold">
+            <h2 className={fullPage ? "text-5xl font-bold" : "text-3xl font-bold"}>
                 Build and Personalize Learning Companion
             </h2>
-            <p>Pick a name, subject, voice, & personality — and start learning through voice conversations that feel natural and fun.</p>
-            <Image src="images/cta.svg" alt="cta" width={362} height={232} />
-            <button className="btn-primary">
-                <Image src="/icons/plus.svg" alt="plus" width={12} height={12}/>
+            <Image src="images/cta.svg" alt="cta" width={fullPage ? 500 : 362} height={fullPage ? 320 : 232} />
+            <button className={fullPage ? "btn-primary-large" : "btn-primary"}>
+                <Image src="/icons/plus.svg" alt="plus" width={fullPage ? 20 : 12} height={fullPage ? 20 : 12}/>
                 <Link href="/companions/new">
-                    <p>Build a New Companion</p>
+                    <p className={fullPage ? "text-lg font-semibold" : ""}>Build a New Companion</p>
                 </Link>
             </button>
         </section>

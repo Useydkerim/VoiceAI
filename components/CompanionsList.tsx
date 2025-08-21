@@ -11,6 +11,7 @@ import {
 import {cn, getSubjectColor} from "@/lib/utils";
 import Link from "next/link";
 import Image from "next/image";
+import SessionDataDisplay from "./SessionDataDisplay";
 
 interface CompanionsListProps {
     title: string;
@@ -26,13 +27,16 @@ const CompanionsList = ({ title, companions, classNames }: CompanionsListProps) 
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead className="text-lg w-2/3">Lessons</TableHead>
+                        <TableHead className="text-lg w-1/2">Lessons</TableHead>
                         <TableHead className="text-lg">Subject</TableHead>
+                        <TableHead className="text-lg">Last Session</TableHead>
                         <TableHead className="text-lg text-right">Duration</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {companions?.map(({id, subject, name, topic, duration}) => (
+                    {companions?.map((companion: any) => {
+                        const {id, subject, name, topic, duration, lastSessionDate, lastSessionScore, lastSessionSummary} = companion;
+                        return (
                         <TableRow key={id}>
                             <TableCell>
                                 <Link href={`/companions/${id}`}>
@@ -69,6 +73,15 @@ const CompanionsList = ({ title, companions, classNames }: CompanionsListProps) 
                                 </div>
                             </TableCell>
                             <TableCell>
+                                <SessionDataDisplay
+                                    companionId={id}
+                                    lastSessionDate={lastSessionDate}
+                                    lastSessionScore={lastSessionScore}
+                                    lastSessionSummary={lastSessionSummary}
+                                    variant="table"
+                                />
+                            </TableCell>
+                            <TableCell>
                                 <div className="flex items-center gap-2 w-full justify-end">
                                     <p className="text-2xl">
                                         {duration} {' '}
@@ -78,7 +91,8 @@ const CompanionsList = ({ title, companions, classNames }: CompanionsListProps) 
                                 </div>
                             </TableCell>
                         </TableRow>
-                    ))}
+                        );
+                    })}
                 </TableBody>
             </Table>
         </article>

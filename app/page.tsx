@@ -1,39 +1,61 @@
-import CompanionCard from "@/components/CompanionCard";
 import CompanionsList from "@/components/CompanionsList";
 import CTA from "@/components/CTA";
 import {recentSessions} from "@/constants";
-import {getAllCompanions, getRecentSessions} from "@/lib/actions/companion.actions";
-import {getSubjectColor} from "@/lib/utils";
+import {getRecentSessions} from "@/lib/actions/companion.actions";
+import { currentUser } from "@clerk/nextjs/server";
 
 const Page = async () => {
-    const companions = await getAllCompanions({ limit: 3 });
-    const recentSessionsCompanions = await getRecentSessions(10);
+    let user = null;
+    try {
+        user = await currentUser();
+    } catch (error) {
+        console.log('User not authenticated');
+    }
 
-  return (
-    <main>
-      <h1>Popular Companions</h1>
+    // Only show recently completed sessions if user is authenticated
+    if (!user) {
+        return (
+            <main>
+                <section className="home-section">
+                    <CTA fullPage={true} />
+                </section>
+            </main>
+        );
+    }
 
-        <section className="home-section">
-            {companions.map((companion) => (
-                <CompanionCard
-                    key={companion.id}
-                    {...companion}
-                    color={getSubjectColor(companion.subject)}
-                />
-            ))}
+    try {
+        const recentSessionsCompanions = await getRecentSessions(10);
+        
+        return (
+            <main>
+                <section className="home-section">
+                    <CompanionsList
+                        title="Recently completed sessions"
+                        companions={recentSessionsCompanions}
+                        classNames="w-2/3 max-lg:w-full"
+                    />
+                    <CTA />
+                </section>
+            </main>
+        );
+    } catch (error) {
+        console.error('Database error:', error);
+        // Fallback to static data if database fails
+        const recentSessionsCompanions = recentSessions;
 
-        </section>
-
-        <section className="home-section">
-            <CompanionsList
-                title="Recently completed sessions"
-                companions={recentSessionsCompanions}
-                classNames="w-2/3 max-lg:w-full"
-            />
-            <CTA />
-        </section>
-    </main>
-  )
+        return (
+            <main>
+                <section className="home-section">
+                    <CompanionsList
+                        title="Recently completed sessions"
+                        companions={recentSessionsCompanions}
+                        classNames="w-2/3 max-lg:w-full"
+                    />
+                    <CTA />
+                </section>
+            </main>
+        );
+    }
 }
 
 export default Page

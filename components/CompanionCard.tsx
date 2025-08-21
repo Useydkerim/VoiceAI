@@ -4,6 +4,7 @@ import { addBookmark } from "@/lib/actions/companion.actions";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import SessionDataDisplay from "./SessionDataDisplay";
 
 interface CompanionCardProps {
   id: string;
@@ -13,6 +14,9 @@ interface CompanionCardProps {
   duration: number;
   color: string;
   bookmarked: boolean;
+  lastSessionDate?: string;
+  lastSessionScore?: number;
+  lastSessionSummary?: string;
 }
 
 const CompanionCard = ({
@@ -23,6 +27,9 @@ const CompanionCard = ({
   duration,
   color,
   bookmarked,
+  lastSessionDate,
+  lastSessionScore,
+  lastSessionSummary,
 }: CompanionCardProps) => {
   const pathname = usePathname();
   const handleBookmark = async () => {
@@ -60,9 +67,17 @@ const CompanionCard = ({
         <p className="text-sm">{duration} minutes</p>
       </div>
 
+      <SessionDataDisplay
+        companionId={id}
+        lastSessionDate={lastSessionDate}
+        lastSessionScore={lastSessionScore}
+        lastSessionSummary={lastSessionSummary}
+        variant="card"
+      />
+
       <Link href={`/companions/${id}`} className="w-full">
-        <button className="btn-primary w-full justify-center">
-          Launch Lesson
+        <button className="btn-primary w-full justify-center mt-3">
+          {lastSessionDate ? 'Continue Learning' : 'Launch Lesson'}
         </button>
       </Link>
     </article>

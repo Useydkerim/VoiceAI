@@ -1,12 +1,13 @@
 'use client';
 
 import {useEffect, useRef, useState} from 'react'
-import {cn, configureAssistant, getSubjectColor} from "@/lib/utils";
+import {cn, getVapiAgentId, getSubjectColor} from "@/lib/utils";
 import {vapi} from "@/lib/vapi.sdk";
 import Image from "next/image";
 import Lottie, {LottieRefCurrentProps} from "lottie-react";
 import soundwaves from '@/constants/soundwaves.json'
 import {addToSessionHistory} from "@/lib/actions/companion.actions";
+import {evaluateVAPISession} from "@/lib/actions/vapi-evaluation.actions";
 
 enum CallStatus {
     INACTIVE = 'INACTIVE',
@@ -20,6 +21,9 @@ const CompanionComponent = ({ companionId, subject, topic, name, userName, userI
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [isMuted, setIsMuted] = useState(false);
     const [messages, setMessages] = useState<SavedMessage[]>([]);
+    const [currentCallId, setCurrentCallId] = useState<string | null>(null);
+    const [isEvaluating, setIsEvaluating] = useState(false);
+    const [evaluationComplete, setEvaluationComplete] = useState(false);
 
     const lottieRef = useRef<LottieRefCurrentProps>(null);
 
@@ -34,11 +38,54 @@ const CompanionComponent = ({ companionId, subject, topic, name, userName, userI
     }, [isSpeaking, lottieRef])
 
     useEffect(() => {
-        const onCallStart = () => setCallStatus(CallStatus.ACTIVE);
+        const onCallStart = () => {
+            setCallStatus(CallStatus.ACTIVE);
+            // We'll capture call ID when available through other means
+            // For now, generate a temporary ID that can be updated later
+            setCurrentCallId(`call_${Date.now()}`);
+        };
 
-        const onCallEnd = () => {
+        const onCallEnd = async () => {
             setCallStatus(CallStatus.FINISHED);
-            addToSessionHistory(companionId)
+            setIsEvaluating(true);
+            
+            // Evaluate the session and get metrics
+            let evaluationData = null;
+            if (currentCallId && messages.length > 0) {
+                try {
+                    const evaluation = await evaluateVAPISession(
+                        currentCallId,
+                        messages,
+                        { subject, topic, name }
+                    );
+                    
+                    evaluationData = {
+                        score: evaluation.score,
+                        summary: evaluation.summary,
+                        duration: evaluation.metrics.duration,
+                        engagement_score: evaluation.metrics.engagement,
+                        comprehension_score: evaluation.metrics.comprehension,
+                        participation_score: evaluation.metrics.participation,
+                        insights: evaluation.insights
+                    };
+                    
+                    console.log('Session Evaluation:', evaluation);
+                } catch (error) {
+                    console.error('Failed to evaluate session:', error);
+                }
+            }
+            
+            // Save session to history with evaluation data
+            await addToSessionHistory(companionId, currentCallId, evaluationData || undefined);
+            
+            setIsEvaluating(false);
+            setEvaluationComplete(true);
+            setCurrentCallId(null);
+            
+            // Reset evaluation complete state after showing success
+            setTimeout(() => {
+                setEvaluationComplete(false);
+            }, 3000);
         }
 
         const onMessage = (message: Message) => {
@@ -77,16 +124,19 @@ const CompanionComponent = ({ companionId, subject, topic, name, userName, userI
     }
 
     const handleCall = async () => {
-        setCallStatus(CallStatus.CONNECTING)
+        setCallStatus(CallStatus.CONNECTING);
+        setIsEvaluating(false);
+        setEvaluationComplete(false);
+        setMessages([]); // Clear previous messages
 
         const assistantOverrides = {
-            variableValues: { subject, topic, style },
-            clientMessages: ["transcript"],
+            variableValues: { topic },
+            clientMessages: [],
             serverMessages: [],
         }
 
-        // @ts-expect-error
-        vapi.start(configureAssistant(voice, style), assistantOverrides)
+        // Use the specific Vapi agent ID
+        vapi.start(getVapiAgentId(), assistantOverrides)
     }
 
     const handleDisconnect = () => {
@@ -141,6 +191,33 @@ const CompanionComponent = ({ companionId, subject, topic, name, userName, userI
                         : 'Start Session'
                         }
                     </button>
+                    
+                    {/* Evaluation Status Display */}
+                    {isEvaluating && (
+                        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                            <div className="flex items-center gap-2">
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                                <span className="text-sm text-blue-700 font-medium">
+                                    Analyzing session performance...
+                                </span>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {evaluationComplete && (
+                        <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                            <div className="flex items-center gap-2">
+                                <div className="rounded-full h-4 w-4 bg-green-600 flex items-center justify-center">
+                                    <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 8 8">
+                                        <path d="M6.564.75l-3.59 3.612-1.538-1.55L0 4.26l2.974 2.99L8 2.193z"/>
+                                    </svg>
+                                </div>
+                                <span className="text-sm text-green-700 font-medium">
+                                    Session evaluated and saved!
+                                </span>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </section>
 

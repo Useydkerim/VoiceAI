@@ -163,11 +163,18 @@ body {
   .cta-section {
     @apply bg-cta text-white rounded-4xl px-7 py-10 flex flex-col items-center text-center gap-5 w-1/3 max-lg:w-1/2 max-md:w-full;
   }
+  .cta-section-full {
+    @apply bg-cta text-white rounded-4xl px-7 py-20 flex flex-col items-center text-center gap-8 w-full min-h-[80vh] justify-center;
+  }
   .cta-badge {
     @apply bg-cta-gold rounded-4xl px-3 py-1.5 text-black;
   }
   .btn-primary {
     @apply bg-primary text-white rounded-xl cursor-pointer px-4 py-2 flex items-center gap-2;
+  }
+  .btn-primary-large {
+    @apply bg-primary text-white rounded-xl cursor-pointer px-8 py-4 flex items-center gap-3 text-lg font-semibold;
+    background-color: #fe5933 !important;
   }
   .navbar {
     @apply flex items-center justify-between mx-auto w-full px-14 py-4 bg-white max-sm:px-4;
@@ -180,6 +187,13 @@ body {
   }
   .companion-limit {
     @apply items-center justify-center flex flex-col gap-4 w-full min-2xl:w-1/2 pt-20 text-center;
+  }
+  
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
   .companion-section {
