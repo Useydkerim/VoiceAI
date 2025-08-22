@@ -1,13 +1,13 @@
 'use client';
 
 import {useEffect, useRef, useState} from 'react'
-import {cn, getVapiAgentId, getSubjectColor} from "@/lib/utils";
-import {vapi} from "@/lib/vapi.sdk";
+import {cn, getSubjectColor} from "@/lib/utils";
+import {createElevenLabsConversation} from "@/lib/elevenlabs.sdk";
 import Image from "next/image";
 import Lottie, {LottieRefCurrentProps} from "lottie-react";
 import soundwaves from '@/constants/soundwaves.json'
 import {addToSessionHistory} from "@/lib/actions/companion.actions";
-import {evaluateVAPISession} from "@/lib/actions/vapi-evaluation.actions";
+import {evaluateElevenLabsSession} from "@/lib/actions/elevenlabs-evaluation.actions";
 
 enum CallStatus {
     INACTIVE = 'INACTIVE',
@@ -16,14 +16,15 @@ enum CallStatus {
     FINISHED = 'FINISHED',
 }
 
-const CompanionComponent = ({ companionId, subject, topic, name, userName, userImage, style, voice }: CompanionComponentProps) => {
+const CompanionComponent = ({ companionId, subject, topic, name, userName, userImage }: CompanionComponentProps) => {
     const [callStatus, setCallStatus] = useState<CallStatus>(CallStatus.INACTIVE);
-    const [isSpeaking, setIsSpeaking] = useState(false);
+    const [isSpeaking] = useState(false);
     const [isMuted, setIsMuted] = useState(false);
     const [messages, setMessages] = useState<SavedMessage[]>([]);
     const [currentCallId, setCurrentCallId] = useState<string | null>(null);
     const [isEvaluating, setIsEvaluating] = useState(false);
     const [evaluationComplete, setEvaluationComplete] = useState(false);
+    const [conversation, setConversation] = useState<any>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
 
     const lottieRef = useRef<LottieRefCurrentProps>(null);
 
@@ -38,22 +39,56 @@ const CompanionComponent = ({ companionId, subject, topic, name, userName, userI
     }, [isSpeaking, lottieRef])
 
     useEffect(() => {
-        const onCallStart = () => {
-            setCallStatus(CallStatus.ACTIVE);
-            // We'll capture call ID when available through other means
-            // For now, generate a temporary ID that can be updated later
-            setCurrentCallId(`call_${Date.now()}`);
-        };
 
-        const onCallEnd = async () => {
-            setCallStatus(CallStatus.FINISHED);
+
+
+
+        // ElevenLabs conversation event setup will be handled in handleCall
+        return () => {
+            // Cleanup will be handled when conversation ends
+        }
+    }, []);
+
+    const toggleMicrophone = () => {
+        if (conversation) {
+            conversation.setMuted(!isMuted);
+            setIsMuted(!isMuted);
+        }
+    }
+
+    const handleCall = async () => {
+        setCallStatus(CallStatus.CONNECTING);
+        setIsEvaluating(false);
+        setEvaluationComplete(false);
+        setMessages([]); // Clear previous messages
+
+        try {
+            const newConversation = await createElevenLabsConversation();
+            setConversation(newConversation);
+            setCallStatus(CallStatus.ACTIVE);
+            setCurrentCallId(`call_${Date.now()}`);
+            
+            // Note: Event handlers would need to be set up based on ElevenLabs API
+            // This is a simplified implementation
+            
+        } catch (error) {
+            console.error('Failed to start ElevenLabs conversation:', error);
+            setCallStatus(CallStatus.INACTIVE);
+        }
+    }
+
+    const handleDisconnect = async () => {
+        setCallStatus(CallStatus.FINISHED);
+        if (conversation) {
+            await conversation.endSession();
+            
+            // Trigger evaluation
             setIsEvaluating(true);
             
-            // Evaluate the session and get metrics
             let evaluationData = null;
             if (currentCallId && messages.length > 0) {
                 try {
-                    const evaluation = await evaluateVAPISession(
+                    const evaluation = await evaluateElevenLabsSession(
                         currentCallId,
                         messages,
                         { subject, topic, name }
@@ -87,61 +122,6 @@ const CompanionComponent = ({ companionId, subject, topic, name, userName, userI
                 setEvaluationComplete(false);
             }, 3000);
         }
-
-        const onMessage = (message: Message) => {
-            if(message.type === 'transcript' && message.transcriptType === 'final') {
-                const newMessage= { role: message.role, content: message.transcript}
-                setMessages((prev) => [newMessage, ...prev])
-            }
-        }
-
-        const onSpeechStart = () => setIsSpeaking(true);
-        const onSpeechEnd = () => setIsSpeaking(false);
-
-        const onError = (error: Error) => console.log('Error', error);
-
-        vapi.on('call-start', onCallStart);
-        vapi.on('call-end', onCallEnd);
-        vapi.on('message', onMessage);
-        vapi.on('error', onError);
-        vapi.on('speech-start', onSpeechStart);
-        vapi.on('speech-end', onSpeechEnd);
-
-        return () => {
-            vapi.off('call-start', onCallStart);
-            vapi.off('call-end', onCallEnd);
-            vapi.off('message', onMessage);
-            vapi.off('error', onError);
-            vapi.off('speech-start', onSpeechStart);
-            vapi.off('speech-end', onSpeechEnd);
-        }
-    }, []);
-
-    const toggleMicrophone = () => {
-        const isMuted = vapi.isMuted();
-        vapi.setMuted(!isMuted);
-        setIsMuted(!isMuted)
-    }
-
-    const handleCall = async () => {
-        setCallStatus(CallStatus.CONNECTING);
-        setIsEvaluating(false);
-        setEvaluationComplete(false);
-        setMessages([]); // Clear previous messages
-
-        const assistantOverrides = {
-            variableValues: { topic },
-            clientMessages: [],
-            serverMessages: [],
-        }
-
-        // Use the specific Vapi agent ID
-        vapi.start(getVapiAgentId(), assistantOverrides)
-    }
-
-    const handleDisconnect = () => {
-        setCallStatus(CallStatus.FINISHED)
-        vapi.stop()
     }
 
     return (

@@ -3,7 +3,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { createSupabaseClient } from "@/lib/supabase";
 
-interface VAPIEvaluationData {
+interface ElevenLabsEvaluationData {
   score: number;
   summary: string;
   metrics: {
@@ -25,26 +25,26 @@ interface ConversationAnalysis {
   duration: number;
 }
 
-export const evaluateVAPISession = async (
+export const evaluateElevenLabsSession = async (
   callId: string,
   messages: any[],
   companionData: { subject: string; topic: string; name: string }
-): Promise<VAPIEvaluationData> => {
+): Promise<ElevenLabsEvaluationData> => {
   
   try {
     // Analyze the conversation locally first
     const analysis = analyzeConversation(messages);
     
-    // Try to fetch additional data from VAPI API if available
-    let vapiMetrics = null;
+    // Try to fetch additional data from ElevenLabs API if available
+    let elevenLabsMetrics = null;
     try {
-      vapiMetrics = await fetchVAPICallMetrics(callId);
+      elevenLabsMetrics = await fetchElevenLabsCallMetrics(callId);
     } catch (error) {
-      console.warn('Could not fetch VAPI metrics, using local analysis:', error);
+      console.warn('Could not fetch ElevenLabs metrics, using local analysis:', error);
     }
     
     // Generate evaluation based on available data
-    const evaluation = generateEvaluation(analysis, vapiMetrics, companionData);
+    const evaluation = generateEvaluation(analysis, elevenLabsMetrics, companionData);
     
     return evaluation;
     
@@ -103,16 +103,16 @@ const analyzeConversation = (messages: any[]): ConversationAnalysis => {
   };
 };
 
-const fetchVAPICallMetrics = async (callId: string) => {
-  const response = await fetch(`https://api.vapi.ai/call/${callId}`, {
+const fetchElevenLabsCallMetrics = async (callId: string) => {
+  const response = await fetch(`https://api.elevenlabs.io/v1/convai/conversations/${callId}`, {
     headers: {
-      'Authorization': `Bearer ${process.env.VAPI_PRIVATE_KEY}`,
+      'xi-api-key': process.env.ELEVENLABS_API_KEY!,
       'Content-Type': 'application/json'
     }
   });
   
   if (!response.ok) {
-    throw new Error(`VAPI API error: ${response.status}`);
+    throw new Error(`ElevenLabs API error: ${response.status}`);
   }
   
   const data = await response.json();
@@ -121,9 +121,9 @@ const fetchVAPICallMetrics = async (callId: string) => {
 
 const generateEvaluation = (
   analysis: ConversationAnalysis, 
-  vapiMetrics: any, 
+  elevenLabsMetrics: any, 
   companionData: { subject: string; topic: string; name: string }
-): VAPIEvaluationData => {
+): ElevenLabsEvaluationData => {
   
   // Calculate engagement score (0-100)
   const engagementScore = Math.min(100, 
